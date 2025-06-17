@@ -1,0 +1,22 @@
+{
+    "name": "C++ Dev Container",
+    "image": "mcr.microsoft.com/devcontainers/cpp:ubuntu-24.04",
+    "features": {},
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake"
+            ]
+        }
+    },
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+    "workspaceFolder": "/workspace",
+    "settings": {
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+    },
+    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y gdb clang-format"
+}
