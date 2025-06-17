@@ -1,22 +1,24 @@
 {
-    "name": "C++ Dev Container",
-    "image": "mcr.microsoft.com/devcontainers/cpp:ubuntu-24.04",
-    "features": {},
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "ms-vscode.cpptools",
-                "ms-vscode.cmake-tools",
-                "twxs.cmake"
-            ]
-        }
+    "name": "cpp-dev-container",
+    "build": {
+        "dockerfile": "../Dockerfile"
     },
     "mounts": [
-        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+        "type=bind,source=${localWorkspaceFolder},target=/workspace"
     ],
-    "workspaceFolder": "/workspace",
-    "settings": {
-        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
-    },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y gdb clang-format"
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "remote.downloadExtensionsLocally": true,
+                "telemetry.enableTelemetry": false,
+                "extensions.ignoreRecommendations": false,
+                "workbench.remoteIndicator.showExtensionRecommendations": false
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "kunalg.library-documentation-cpp",
+                "danielpinto8zz6.c-cpp-compile-run"
+            ]
+        }
+    }
 }

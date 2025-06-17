@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# VSCODE
+*.vscode*
+
+.cache/*
+.ssh/*
+.dotnet/*
+.gitconfig*
+
