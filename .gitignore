@@ -39,3 +39,6 @@
 .dotnet/*
 .gitconfig*
 
+*.las
+*.tif
+
