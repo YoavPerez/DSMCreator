@@ -1,11 +1,8 @@
 {
     "name": "cpp-dev-container",
-    "build": {
-        "dockerfile": "../Dockerfile"
-    },
-    "mounts": [
-        "type=bind,source=${localWorkspaceFolder},target=/workspace"
-    ],
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "dev", 
+    "workspaceFolder": "/app", // Add this line
     "customizations": {
         "vscode": {
             "settings": {
