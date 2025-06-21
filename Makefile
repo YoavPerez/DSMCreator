@@ -1,19 +1,22 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -O2 -fopenmp
-INCLUDES = 
+INCLUDES = -Iinclude
 LDFLAGS = -ltiff -fopenmp
-LIBLAS_LIB_PATH = /usr/local/lib
 
-SRC = las_parser.cpp
-OUT = main
+SRC_DIR = src
+OBJ_DIR = build
+SRC = $(wildcard $(SRC_DIR)/*.cpp)
+OBJ = $(SRC:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+OUT = las_dsm
 
 all: $(OUT)
 
-$(OUT): $(SRC)
+$(OUT): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
 
-run: $(OUT)
-	LD_LIBRARY_PATH=$(LIBLAS_LIB_PATH):$$LD_LIBRARY_PATH ./$(OUT)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<
 
 clean:
-	rm -f $(OUT)
+	rm -rf $(OBJ_DIR) $(OUT)

@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <fstream>
+
 struct LASHeader {
     uint32_t dataOffset;
     uint32_t pointCount;
