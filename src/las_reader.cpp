@@ -8,7 +8,7 @@
 
 #define BATCH_SIZE 1'000'000
 
-std::vector<LASPointData> LASReader::read_points(int *minX, int *minY, int *maxX, int *maxY)
+std::vector<LASPointData> LASReader::read_points()
 {
     std::vector<LASPointData> points(header.pointCount);
 
@@ -17,11 +17,6 @@ std::vector<LASPointData> LASReader::read_points(int *minX, int *minY, int *maxX
     uint32_t total_points = header.pointCount;
     uint16_t record_len = header.pointRecordLength;
 
-    // Initialize min/max with extreme values
-    *minX = std::numeric_limits<int>::max();
-    *minY = std::numeric_limits<int>::max();
-    *maxX = std::numeric_limits<int>::min();
-    *maxY = std::numeric_limits<int>::min();
 
     for (uint32_t done = 0; done < total_points; done += BATCH_SIZE)
     {
@@ -35,60 +30,29 @@ std::vector<LASPointData> LASReader::read_points(int *minX, int *minY, int *maxX
             size_t base = i * record_len;
             LASPointData pt;
 
-            pt.x =  static_cast<int32_t>(
-                static_cast<uint32_t>(buffer[base + 0]) |
-                (static_cast<uint32_t>(buffer[base + 1]) << 8) |
-                (static_cast<uint32_t>(buffer[base + 2]) << 16) |
-                (static_cast<uint32_t>(buffer[base + 3]) << 24)
-            );
-            pt.y =  static_cast<int32_t>(
-                static_cast<uint32_t>(buffer[base + 4]) |
-                (static_cast<uint32_t>(buffer[base + 5]) << 8) |
-                (static_cast<uint32_t>(buffer[base + 6]) << 16) |
-                (static_cast<uint32_t>(buffer[base + 7]) << 24)
-            );
-            pt.z =  static_cast<int32_t>(
-                static_cast<uint32_t>(buffer[base + 8]) |
-                (static_cast<uint32_t>(buffer[base + 9]) << 8) |
-                (static_cast<uint32_t>(buffer[base + 10]) << 16) |
-                (static_cast<uint32_t>(buffer[base + 11]) << 24)
-            );
-            pt.intensity = static_cast<uint16_t>(
-                static_cast<uint16_t>(buffer[base + 12]) |
-                (static_cast<uint16_t>(buffer[base + 13]) << 8)
-            );
-            pt.returnInfo = buffer[base + 14];
-            pt.classification = buffer[base + 15];
-            pt.scanAngleRank = buffer[base + 16];
-            pt.userData = buffer[base + 17];
-            pt.pointSourceID = static_cast<uint16_t>(
-                static_cast<uint16_t>(buffer[base + 18]) |
-                (static_cast<uint16_t>(buffer[base + 19]) << 8)
-            );
-            // gpsTime is 8 bytes, little-endian double
-            uint64_t gpsTimeBits =
-                static_cast<uint64_t>(buffer[base + 20]) |
-                (static_cast<uint64_t>(buffer[base + 21]) << 8) |
-                (static_cast<uint64_t>(buffer[base + 22]) << 16) |
-                (static_cast<uint64_t>(buffer[base + 23]) << 24) |
-                (static_cast<uint64_t>(buffer[base + 24]) << 32) |
-                (static_cast<uint64_t>(buffer[base + 25]) << 40) |
-                (static_cast<uint64_t>(buffer[base + 26]) << 48) |
-                (static_cast<uint64_t>(buffer[base + 27]) << 56);
-            std::memcpy(&pt.gpsTime, &gpsTimeBits, sizeof(double)); // This is allowed, as it's not memcpy from buffer
+            // Read X, Y, Z as int32_t (little-endian)
+            std::memcpy(&pt.x, &buffer[base + 0], sizeof(int32_t));
+            std::memcpy(&pt.y, &buffer[base + 4], sizeof(int32_t));
+            std::memcpy(&pt.z, &buffer[base + 8], sizeof(int32_t));
 
-            pt.red = static_cast<uint16_t>(
-                static_cast<uint16_t>(buffer[base + 28]) |
-                (static_cast<uint16_t>(buffer[base + 29]) << 8)
-            );
-            pt.green = static_cast<uint16_t>(
-                static_cast<uint16_t>(buffer[base + 30]) |
-                (static_cast<uint16_t>(buffer[base + 31]) << 8)
-            );
-            pt.blue = static_cast<uint16_t>(
-                static_cast<uint16_t>(buffer[base + 32]) |
-                (static_cast<uint16_t>(buffer[base + 33]) << 8)
-            );
+            // Intensity (uint16_t)
+            std::memcpy(&pt.intensity, &buffer[base + 12], sizeof(uint16_t));
+
+            pt.returnInfo      = buffer[base + 14];
+            pt.classification  = buffer[base + 15];
+            pt.scanAngleRank   = buffer[base + 16];
+            pt.userData        = buffer[base + 17];
+
+            // Point Source ID (uint16_t)
+            std::memcpy(&pt.pointSourceID, &buffer[base + 18], sizeof(uint16_t));
+
+            // gpsTime (double, 8 bytes, little-endian)
+            std::memcpy(&pt.gpsTime, &buffer[base + 20], sizeof(double));
+
+            // Color (uint16_t, little-endian)
+            std::memcpy(&pt.red,   &buffer[base + 28], sizeof(uint16_t));
+            std::memcpy(&pt.green, &buffer[base + 30], sizeof(uint16_t));
+            std::memcpy(&pt.blue,  &buffer[base + 32], sizeof(uint16_t));
             points[done + i] = pt;
 
             // Update min/max coordinates (atomic for thread safety)
@@ -96,22 +60,15 @@ std::vector<LASPointData> LASReader::read_points(int *minX, int *minY, int *maxX
             // {
                 int x = static_cast<int>(pt.x);
                 int y = static_cast<int>(pt.y);
-                if (x < *minX) *minX = x;
-                if (x > *maxX) *maxX = x;
-                if (y < *minY) *minY = y;
-                if (y > *maxY) *maxY = y;
-            // }
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
         }
     }
 
-    std::cout << "\nReading complete. Total points read: " << points.size() << std::endl;
-    double minXCoord = header.offsetX + header.scaleX * (*minX);
-    double maxXCoord = header.offsetX + header.scaleX * (*maxX);
-    double minYCoord = header.offsetY + header.scaleY * (*minY);
-    double maxYCoord = header.offsetY + header.scaleY * (*maxY);
-
-    std::cout << "Coordinate range: X [" << minXCoord << ", " << maxXCoord << "], Y [" << minYCoord << ", " << maxYCoord << "]" << std::endl;
-    std::cout << "Resolution: " << resolution << std::endl;
+    std::cout << "Reading complete. Total points read: " << points.size() << std::endl;
     return points;
 }
 
@@ -148,7 +105,7 @@ std::vector<uint32_t> LASReader::create_DSM(const std::vector<LASPointData>& poi
         i++;
         // show progress bar
     }
-    std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::flush;
+    std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::endl;
     return dsm;
 
 }

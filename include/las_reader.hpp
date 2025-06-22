@@ -61,9 +61,6 @@ struct LASReader
         if (!header.read(file)) {
             throw std::runtime_error("Failed to read LAS header.");
         }
-        if (not header.read(file)){
-            throw std::runtime_error("Failed to read LAS header.");
-        }
         file.seekg(header.dataOffset, std::ios::beg);
         resolution = res;
         minX = std::numeric_limits<uint32_t>::max();
@@ -86,7 +83,7 @@ struct LASReader
         return header;
     }
 
-    std::vector<LASPointData> read_points(int* minX, int* minY, int* maxX, int* maxY);
+    std::vector<LASPointData> read_points();
     std::vector<uint32_t> create_DSM(const std::vector<LASPointData>& points, double minX, double minY, double maxX, double maxY, double res);
     void refine_DSM(std::vector<uint32_t>& dsm, int width, int height);
 };
