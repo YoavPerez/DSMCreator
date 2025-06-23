@@ -50,7 +50,18 @@ struct LASReader
         uint32_t minY;
         uint32_t maxX;
         uint32_t maxY;
+        uint32_t minZ;
+        uint32_t maxZ;
         double resolution;
+        double minXCoord;
+        double minYCoord;
+        double maxXCoord;
+        double maxYCoord;
+        double minZCoord;
+        double maxZCoord;
+        int width;
+        int height;
+
 
 
     LASReader(const std::string& filename, double res = 0.3) {
@@ -67,6 +78,14 @@ struct LASReader
         minY = std::numeric_limits<uint32_t>::max();
         maxX = std::numeric_limits<uint32_t>::lowest();
         maxY = std::numeric_limits<uint32_t>::lowest();
+        minZ = std::numeric_limits<uint32_t>::max();
+        maxZ = std::numeric_limits<uint32_t>::lowest();
+        minXCoord = 0.0;
+        minYCoord = 0.0;
+        maxXCoord = 0.0;
+        maxYCoord = 0.0;
+        minZCoord = 0.0;
+        maxZCoord = 0.0;
     }
 
     ~LASReader() {
@@ -84,6 +103,6 @@ struct LASReader
     }
 
     std::vector<LASPointData> read_points();
-    std::vector<uint32_t> create_DSM(const std::vector<LASPointData>& points, double minX, double minY, double maxX, double maxY, double res);
-    void refine_DSM(std::vector<uint32_t>& dsm, int width, int height);
+    std::vector<uint32_t> create_DSM(const std::vector<LASPointData>& points);
+    void refine_DSM(std::vector<uint32_t>& dsm);
 };
