@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -O2 -fopenmp
-INCLUDES = -Iinclude
-LDFLAGS = -ltiff -fopenmp
+INCLUDES = -Iinclude $(shell gdal-config --cflags)
+LDFLAGS = -ltiff -fopenmp $(shell gdal-config --libs)
 
 SRC_DIR = src
 OBJ_DIR = build

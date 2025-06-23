@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iomanip>
 #define BATCH_SIZE 1'000'000
+#define REFINMENT_TIMES 5
 
 std::vector<LASPointData> LASReader::read_points()
 {
@@ -104,7 +105,7 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
             std::cout << "\rProcessed " << (&pt - &points[0] + 1) << "/" << points.size() << " points" << std::flush;
         
         int col = static_cast<int>(std::round((pt.x * header.scaleX + header.offsetX - minXCoord) / resolution));
-        int row = static_cast<int>(std::round((pt.y * header.scaleY + header.offsetY - minYCoord) / resolution));
+        int row = static_cast<int>(std::round((maxYCoord - (pt.y * header.scaleY + header.offsetY)) / resolution));
 
         if (col >= 0 && col < width && row >= 0 && row < height)
         {
@@ -119,8 +120,10 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
     std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::endl;
     std::cout << "DSM sample values: " << std::endl;
 
-    refine_DSM(dsm, selected_points);
-    refine_DSM(dsm, selected_points); // Call refine DSM again to ensure all missing values are handled
+    for(int i=0; i < REFINMENT_TIMES; i++){
+        std::cout << "Refining DSM, iteration: " << i + 1 << std::endl;
+        refine_DSM(dsm, selected_points);
+    }
     return dsm;
 }
 
