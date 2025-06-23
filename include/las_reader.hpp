@@ -7,8 +7,7 @@
 #include <tuple>
 #include <iomanip>
 
-
-/* 
+/*
 Point Data Format 3 – Structure (34 bytes)
 Offset (bytes)	Size (bytes)	Field name	Type	Description
 0	4	X	int32_t	X coordinate (to be scaled and offset)
@@ -26,51 +25,53 @@ Offset (bytes)	Size (bytes)	Field name	Type	Description
 32	2	Blue	uint16_t	Blue channel
 */
 
-struct LASPointData{
-    uint32_t x; // X coordinate (scaled and offset)
-    uint32_t y; // Y coordinate
-    uint32_t z; // Z coordinate
-    uint16_t intensity; // LIDAR return intensity
-    uint8_t returnInfo; // Bit-packed: Return Number, Num Returns, Scan Dir Flag, Edge of Flight Line
+struct LASPointData
+{
+    uint32_t x;             // X coordinate (scaled and offset)
+    uint32_t y;             // Y coordinate
+    uint32_t z;             // Z coordinate
+    uint16_t intensity;     // LIDAR return intensity
+    uint8_t returnInfo;     // Bit-packed: Return Number, Num Returns, Scan Dir Flag, Edge of Flight Line
     uint8_t classification; // ASPRS classification code
-    int8_t scanAngleRank; // Angle from -90 to +90
-    uint8_t userData; // User-defined (optional)
+    int8_t scanAngleRank;   // Angle from -90 to +90
+    uint8_t userData;       // User-defined (optional)
     uint16_t pointSourceID; // Typically flightline ID
-    double gpsTime; // Time of return
-    uint16_t red; // Red channel of color (0–65535)
-    uint16_t green; // Green channel
-    uint16_t blue; // Blue channel
+    double gpsTime;         // Time of return
+    uint16_t red;           // Red channel of color (0–65535)
+    uint16_t green;         // Green channel
+    uint16_t blue;          // Blue channel
 };
 
 struct LASReader
 {
-    public:
-        std::ifstream file;
-        LASHeader header;
-        uint32_t minX;
-        uint32_t minY;
-        uint32_t maxX;
-        uint32_t maxY;
-        uint32_t minZ;
-        uint32_t maxZ;
-        double resolution;
-        double minXCoord;
-        double minYCoord;
-        double maxXCoord;
-        double maxYCoord;
-        double minZCoord;
-        double maxZCoord;
-        int width;
-        int height;
+public:
+    std::ifstream file;
+    LASHeader header;
+    uint32_t minX;
+    uint32_t minY;
+    uint32_t maxX;
+    uint32_t maxY;
+    uint32_t minZ;
+    uint32_t maxZ;
+    double resolution;
+    double minXCoord;
+    double minYCoord;
+    double maxXCoord;
+    double maxYCoord;
+    double minZCoord;
+    double maxZCoord;
+    int width;
+    int height;
 
-
-
-    LASReader(const std::string& filename, double res = 0.3) {
+    LASReader(const std::string &filename, double res = 0.3)
+    {
         file.open(filename, std::ios::binary);
-        if (!file) {
+        if (!file)
+        {
             throw std::runtime_error("Could not open LAS file: " + filename);
         }
-        if (!header.read(file)) {
+        if (!header.read(file))
+        {
             throw std::runtime_error("Failed to read LAS header.");
         }
         file.seekg(header.dataOffset, std::ios::beg);
@@ -89,30 +90,40 @@ struct LASReader
         maxZCoord = 0.0;
     }
 
-    ~LASReader() {
-        if (file.is_open()) {
+    ~LASReader()
+    {
+        if (file.is_open())
+        {
             file.close();
         }
     }
-    
-    bool is_open() const {
+
+    bool is_open() const
+    {
         return file.is_open();
     }
 
-    const LASHeader& get_header() const {
+    const LASHeader &get_header() const
+    {
         return header;
     }
 
     std::vector<LASPointData> read_points();
-    std::vector<double> create_DSM(const std::vector<LASPointData>& points);
-    void refine_DSM(std::vector<double>& dsm, std::vector<LASPointData>& selected_points);
-    void print_sample_DSM(const std::vector<double>& dsm) const{
-        for (int row = 0; row < std::min(30, height); ++row) {
-            for (int col = 0; col < std::min(30, width); ++col) {
+    std::vector<double> create_DSM(const std::vector<LASPointData> &points);
+    void refine_DSM(std::vector<double> &dsm, std::vector<LASPointData> &selected_points);
+    void print_sample_DSM(const std::vector<double> &dsm) const
+    {
+        for (int row = 0; row < std::min(30, height); ++row)
+        {
+            for (int col = 0; col < std::min(30, width); ++col)
+            {
                 size_t idx = row * width + col;
-                if (dsm[idx] == std::numeric_limits<double>::min()) {
+                if (dsm[idx] == std::numeric_limits<double>::min())
+                {
                     std::cout << std::setw(6) << "N/A" << " ";
-                } else {
+                }
+                else
+                {
                     std::cout << std::setw(6) << std::fixed << std::setprecision(2) << dsm[idx] << " ";
                 }
             }

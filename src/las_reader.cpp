@@ -103,7 +103,7 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
         if (i % 1'000'000 == 0) // Show progress every 1M points
             // Show progress bar
             std::cout << "\rProcessed " << (&pt - &points[0] + 1) << "/" << points.size() << " points" << std::flush;
-        
+
         int col = static_cast<int>(std::round((pt.x * header.scaleX + header.offsetX - minXCoord) / resolution));
         int row = static_cast<int>(std::round((maxYCoord - (pt.y * header.scaleY + header.offsetY)) / resolution));
 
@@ -120,7 +120,8 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
     std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::endl;
     std::cout << "DSM sample values: " << std::endl;
 
-    for(int i=0; i < REFINMENT_TIMES; i++){
+    for (int i = 0; i < REFINMENT_TIMES; i++)
+    {
         std::cout << "Refining DSM, iteration: " << i + 1 << std::endl;
         refine_DSM(dsm, selected_points);
     }
@@ -136,7 +137,8 @@ std::tuple<int, double> count_non_null_in_range(const std::vector<double> &dsm, 
     {
         for (int c = -range; c <= range; ++c)
         {
-            if (r == 0 && c == 0) continue; // Skip the center
+            if (r == 0 && c == 0)
+                continue; // Skip the center
             int nr = row + r;
             int nc = col + c;
             if (nr >= 0 && nr < height && nc >= 0 && nc < width)
@@ -162,7 +164,8 @@ double calculate_stddev(const std::vector<double> &dsm, int row, int col, int ra
     {
         for (int c = -range; c <= range; ++c)
         {
-            if (r == 0 && c == 0) continue; // Skip the center
+            if (r == 0 && c == 0)
+                continue; // Skip the center
             int nr = row + r;
             int nc = col + c;
             if (nr >= 0 && nr < height && nc >= 0 && nc < width)
@@ -196,11 +199,11 @@ void LASReader::refine_DSM(std::vector<double> &dsm, std::vector<LASPointData> &
             if (dsm[idx] == std::numeric_limits<double>::min())
             {
                 null_points++;
-                double meter_range = 1.5; // 1.5 meters range for interpolation
+                double meter_range = 1.5;                                           // 1.5 meters range for interpolation
                 int range = static_cast<int>(std::round(meter_range / resolution)); // Range in pixels, 1.5 meters
                 auto [count, sum] = count_non_null_in_range(dsm, row, col, range, width);
                 // If we have enough surrounding points, calculate the mean and standard deviation
-                if (count > range*range /2.0)
+                if (count > range * range / 2.0)
                 {
                     double mean = sum / count;
                     double stddev = calculate_stddev(dsm, row, col, range, width, mean);
