@@ -5,7 +5,7 @@
 #include <cstring>
 #include <tuple>
 #include <cmath>
-
+#include <iomanip>
 #define BATCH_SIZE 1'000'000
 
 std::vector<LASPointData> LASReader::read_points()
@@ -93,12 +93,13 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
 {
     // create DSM based on the points read
     std::vector<double> dsm(static_cast<size_t>(width) * static_cast<size_t>(height), std::numeric_limits<double>::min());
+    std::vector<LASPointData> selected_points(static_cast<size_t>(width) * static_cast<size_t>(height), LASPointData{0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 0, 0});
     std::cout << "Creating DSM with resolution: " << resolution << " meters" << std::endl;
     std::cout << "DSM size: " << width << " x " << height << " pixels" << std::endl;
     int i = 0;
     for (const auto &pt : points)
     {
-        if (i % 100000 == 0) // Show progress every 100k points
+        if (i % 1'000'000 == 0) // Show progress every 1M points
             // Show progress bar
             std::cout << "\rProcessed " << (&pt - &points[0] + 1) << "/" << points.size() << " points" << std::flush;
         
@@ -110,65 +111,112 @@ std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &point
             size_t idx = row * width + col;
             double z = static_cast<double>(pt.z) * header.scaleZ + header.offsetZ;
             dsm[idx] = std::max(dsm[idx], z);
+            selected_points[idx] = pt; // Store the point data for potential further use
         }
         i++;
         // show progress bar
     }
     std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::endl;
-    if (width < 30 && height < 30)
-    {
-        std::cout << "DSM (small size):" << std::endl;
-        for (int row = 0; row < height; ++row)
-        {
-            for (int col = 0; col < width; ++col)
-            {
-                size_t idx = row * width + col;
-                if (dsm[idx] == std::numeric_limits<double>::min())
-                    std::cout << " . ";
-                else
-                    std::cout << " " << dsm[idx] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
+    std::cout << "DSM sample values: " << std::endl;
+
+    refine_DSM(dsm, selected_points);
+    refine_DSM(dsm, selected_points); // Call refine DSM again to ensure all missing values are handled
     return dsm;
 }
 
-void LASReader::refine_DSM(std::vector<double> &dsm)
+std::tuple<int, double> count_non_null_in_range(const std::vector<double> &dsm, int row, int col, int range, int width)
 {
-    // Refine DSM by interpolating missing values
-    auto startDSM = std::chrono::high_resolution_clock::now();
-
-    // #pragma omp parallel for collapse(2)
-    for (int row = 1; row < height - 1; ++row)
+    int count = 0;
+    double sum = 0.0;
+    int height = static_cast<int>(dsm.size() / width);
+    for (int r = -range; r <= range; ++r)
     {
-        for (int col = 1; col < width - 1; ++col)
+        for (int c = -range; c <= range; ++c)
         {
-            size_t idx = row * width + col;
-            if (dsm[idx] == std::numeric_limits<uint32_t>::min())
+            if (r == 0 && c == 0) continue; // Skip the center
+            int nr = row + r;
+            int nc = col + c;
+            if (nr >= 0 && nr < height && nc >= 0 && nc < width)
             {
-                float sum = 0;
-                int count = 0;
-                for (int dy = -1; dy <= 1; ++dy)
+                size_t nidx = nr * width + nc;
+                if (dsm[nidx] != std::numeric_limits<double>::min())
                 {
-                    for (int dx = -1; dx <= 1; ++dx)
-                    {
-                        // size_t n_idx = (row + dy) * width + (col + dx);
-                        // float val = dsm[n_idx];
-                        // if (val != std::numeric_limits<uint32_t>::min()) {
-                        //     sum += val;
-                        //     count++;
-                        // }
-                    }
-                }
-                if (count > 0)
-                {
-                    dsm[idx] = sum / count; // Mean interpolation
+                    count++;
+                    sum += dsm[nidx];
                 }
             }
         }
     }
+    return std::make_tuple(count, sum);
+}
 
+double calculate_stddev(const std::vector<double> &dsm, int row, int col, int range, int width, double mean)
+{
+    double sum = 0.0;
+    int count = 0;
+    int height = static_cast<int>(dsm.size() / width);
+    for (int r = -range; r <= range; ++r)
+    {
+        for (int c = -range; c <= range; ++c)
+        {
+            if (r == 0 && c == 0) continue; // Skip the center
+            int nr = row + r;
+            int nc = col + c;
+            if (nr >= 0 && nr < height && nc >= 0 && nc < width)
+            {
+                size_t nidx = nr * width + nc;
+                if (dsm[nidx] != std::numeric_limits<double>::min())
+                {
+                    double diff = dsm[nidx] - mean;
+                    sum += diff * diff;
+                    count++;
+                }
+            }
+        }
+    }
+    return std::sqrt(sum / count);
+}
+
+void LASReader::refine_DSM(std::vector<double> &dsm, std::vector<LASPointData> &selected_points)
+{
+    // Refine DSM by interpolating missing values
+    auto startDSM = std::chrono::high_resolution_clock::now();
+    // interpolate miising values, if the standard deviation of the surrounding points is less than 0.5, use the mean of the surrounding points
+    std::cout << "Refining DSM..." << std::endl;
+    int fixed_points = 0;
+    int null_points = 0;
+    for (int row = 0; row < height; ++row)
+    {
+        for (int col = 0; col < width; ++col)
+        {
+            size_t idx = row * width + col;
+            if (dsm[idx] == std::numeric_limits<double>::min())
+            {
+                null_points++;
+                double meter_range = 1.5; // 1.5 meters range for interpolation
+                int range = static_cast<int>(std::round(meter_range / resolution)); // Range in pixels, 1.5 meters
+                auto [count, sum] = count_non_null_in_range(dsm, row, col, range, width);
+                // If we have enough surrounding points, calculate the mean and standard deviation
+                if (count > range*range /2.0)
+                {
+                    double mean = sum / count;
+                    double stddev = calculate_stddev(dsm, row, col, range, width, mean);
+                    if (stddev < meter_range) // If standard deviation is less than resolution, use the mean
+                    {
+                        dsm[idx] = mean;
+                        selected_points[idx].z = static_cast<int32_t>(std::round(mean / header.scaleZ - header.offsetZ));
+                        fixed_points++;
+                    }
+                    else
+                    {
+                        // If standard deviation is too high, keep the value as is (or set to a specific value if needed)
+                        dsm[idx] = std::numeric_limits<double>::min(); // or somakeme other logic
+                    }
+                }
+            }
+        }
+    }
     auto endDSM = std::chrono::high_resolution_clock::now();
     std::cout << "DSM refinement took " << std::chrono::duration<double>(endDSM - startDSM).count() << " seconds.\n";
+    std::cout << "Fixed " << fixed_points << " points, null points: " << null_points << std::endl;
 }

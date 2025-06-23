@@ -27,12 +27,8 @@ int main(int argc, char* argv[]) {
 
     auto points = reader.read_points();
     std::cout << "points read: " << points.size() << std::endl;
-    double minXCoord = reader.header.offsetX + reader.header.scaleX * reader.minX;
-    double maxXCoord = reader.header.offsetX + reader.header.scaleX * reader.maxX;
-    double minYCoord = reader.header.offsetY + reader.header.scaleY * reader.minY;
-    double maxYCoord = reader.header.offsetY + reader.header.scaleY * reader.maxY;
     auto dsm = reader.create_DSM(points);
-    reader.refine_DSM(dsm);
+
     auto endRead = std::chrono::high_resolution_clock::now();
     std::cout << "\nReading complete in " << std::chrono::duration<double>(endRead - startRead).count() << " seconds.\n";
     return 0;

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstring>
 #include <tuple>
+#include <iomanip>
 
 
 /* 
@@ -104,5 +105,18 @@ struct LASReader
 
     std::vector<LASPointData> read_points();
     std::vector<double> create_DSM(const std::vector<LASPointData>& points);
-    void refine_DSM(std::vector<double>& dsm);
+    void refine_DSM(std::vector<double>& dsm, std::vector<LASPointData>& selected_points);
+    void print_sample_DSM(const std::vector<double>& dsm) const{
+        for (int row = 0; row < std::min(30, height); ++row) {
+            for (int col = 0; col < std::min(30, width); ++col) {
+                size_t idx = row * width + col;
+                if (dsm[idx] == std::numeric_limits<double>::min()) {
+                    std::cout << std::setw(6) << "N/A" << " ";
+                } else {
+                    std::cout << std::setw(6) << std::fixed << std::setprecision(2) << dsm[idx] << " ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
 };
