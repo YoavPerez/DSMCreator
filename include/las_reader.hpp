@@ -103,6 +103,6 @@ struct LASReader
     }
 
     std::vector<LASPointData> read_points();
-    std::vector<uint32_t> create_DSM(const std::vector<LASPointData>& points);
-    void refine_DSM(std::vector<uint32_t>& dsm);
+    std::vector<double> create_DSM(const std::vector<LASPointData>& points);
+    void refine_DSM(std::vector<double>& dsm);
 };

@@ -35,8 +35,5 @@ int main(int argc, char* argv[]) {
     reader.refine_DSM(dsm);
     auto endRead = std::chrono::high_resolution_clock::now();
     std::cout << "\nReading complete in " << std::chrono::duration<double>(endRead - startRead).count() << " seconds.\n";
-
-
-    
     return 0;
 };

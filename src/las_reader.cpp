@@ -89,10 +89,10 @@ std::vector<LASPointData> LASReader::read_points()
     return points;
 }
 
-std::vector<uint32_t> LASReader::create_DSM(const std::vector<LASPointData> &points)
+std::vector<double> LASReader::create_DSM(const std::vector<LASPointData> &points)
 {
     // create DSM based on the points read
-    std::vector<uint32_t> dsm(static_cast<size_t>(width) * static_cast<size_t>(height), std::numeric_limits<uint32_t>::min());
+    std::vector<double> dsm(static_cast<size_t>(width) * static_cast<size_t>(height), std::numeric_limits<double>::min());
     std::cout << "Creating DSM with resolution: " << resolution << " meters" << std::endl;
     std::cout << "DSM size: " << width << " x " << height << " pixels" << std::endl;
     int i = 0;
@@ -101,22 +101,40 @@ std::vector<uint32_t> LASReader::create_DSM(const std::vector<LASPointData> &poi
         if (i % 100000 == 0) // Show progress every 100k points
             // Show progress bar
             std::cout << "\rProcessed " << (&pt - &points[0] + 1) << "/" << points.size() << " points" << std::flush;
-        int col = static_cast<int>((pt.x - minX) / resolution);
-        int row = static_cast<int>((pt.y - minY) / resolution);
+        
+        int col = static_cast<int>(std::round((pt.x * header.scaleX + header.offsetX - minXCoord) / resolution));
+        int row = static_cast<int>(std::round((pt.y * header.scaleY + header.offsetY - minYCoord) / resolution));
 
         if (col >= 0 && col < width && row >= 0 && row < height)
         {
             size_t idx = row * width + col;
-            dsm[idx] = std::max(dsm[idx], pt.z);
+            double z = static_cast<double>(pt.z) * header.scaleZ + header.offsetZ;
+            dsm[idx] = std::max(dsm[idx], z);
         }
         i++;
         // show progress bar
     }
     std::cout << "\rProcessed " << points.size() << "/" << points.size() << " points" << std::endl;
+    if (width < 30 && height < 30)
+    {
+        std::cout << "DSM (small size):" << std::endl;
+        for (int row = 0; row < height; ++row)
+        {
+            for (int col = 0; col < width; ++col)
+            {
+                size_t idx = row * width + col;
+                if (dsm[idx] == std::numeric_limits<double>::min())
+                    std::cout << " . ";
+                else
+                    std::cout << " " << dsm[idx] << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
     return dsm;
 }
 
-void LASReader::refine_DSM(std::vector<uint32_t> &dsm)
+void LASReader::refine_DSM(std::vector<double> &dsm)
 {
     // Refine DSM by interpolating missing values
     auto startDSM = std::chrono::high_resolution_clock::now();
